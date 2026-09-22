@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Setu — ops dashboard</title>
+<link rel="stylesheet" href="/css/styles.css" />
+<style>
+  main {
+    padding: 26px 28px 60px;
+    max-width: 1180px;
+    margin: 0 auto;
+  }
+  h1 {
+    font-size: 21px;
+    margin: 0 0 4px;
+  }
+  .lede {
+    color: var(--text-muted);
+    font-size: 14px;
+    margin: 0 0 26px;
+  }
+
+  .stat-row {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 14px;
+    margin-bottom: 30px;
+  }
+  @media (max-width: 900px) {
+    .stat-row { grid-template-columns: repeat(2, 1fr); }
+  }
+  .stat-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+  }
+  .stat-num {
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+  .stat-label {
+    color: var(--text-muted);
+    font-size: 12.5px;
+    margin-top: 4px;
+  }
+  .stat-card.warn .stat-num { color: var(--amber); }
+  .stat-card.danger .stat-num { color: var(--red); }
+  .stat-card.ready .stat-num { color: var(--teal); }
+
+  .panels {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 30px;
+  }
+  @media (max-width: 900px) {
+    .panels { grid-template-columns: 1fr; }
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+  }
+  .panel h2 {
+    font-size: 13.5px;
+    color: var(--text-muted);
+    margin: 0 0 14px;
+    font-weight: 600;
+  }
+  .bar-row {
+    display: grid;
+    grid-template-columns: 90px 1fr 32px;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    margin-bottom: 10px;
+  }
+  .bar-track {
+    height: 8px;
+    border-radius: 999px;
+    background: var(--panel-raised);
+    overflow: hidden;
+  }
+  .bar-fill {
+    height: 100%;
+    background: var(--teal);
+    border-radius: 999px;
+  }
+  .empty-note {
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+
+  /* language radial */
+  .radial-wrap {
+    display: flex;
+    align-items: center;
+    gap: 22px;
+  }
+  .radial-legend {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+  }
+  .radial-legend-row {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 13px;
+  }
+  .radial-swatch {
+    width: 9px;
+    height: 9px;
+    border-radius: 2px;
+    flex: 0 0 9px;
+  }
+  .radial-script {
+    color: var(--text-muted);
+    margin-left: auto;
+    font-size: 13px;
+  }
+  .radial-center-num {
+    font-size: 20px;
+    font-weight: 800;
+  }
+  .radial-center-label {
+    font-size: 10.5px;
+    color: var(--text-muted);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13.5px;
+  }
+  th, td {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  th {
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 12px;
+  }
+  tr.escalated td:first-child {
+    box-shadow: inset 3px 0 0 var(--red);
+  }
+  .mono {
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    font-size: 12.5px;
+    color: var(--text-muted);
+  }
+</style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">Setu</span>
+      <span class="brand-sub">ops view</span>
+    </div>
+    <nav class="nav-links">
+      <a href="/">Chat</a>
+      <a href="/dashboard.html" class="active">Ops dashboard</a>
+    </nav>
+    <div class="status-pill" id="statusPill">
+      <span class="status-dot" id="statusDot"></span>
+      <span id="statusText">loading…</span>
+    </div>
+  </header>
+
+  <main>
+    <h1>What Setu is seeing right now</h1>
+    <p class="lede">Aggregated from every open session's backend classification pass — refreshes every 3 seconds.</p>
+
+    <section class="stat-row" id="statRow"></section>
+
+    <section class="panels">
+      <div class="panel">
+        <h2>Queries by language</h2>
+        <div id="langRadial"><p class="empty-note">No queries yet — send one from the chat page.</p></div>
+      </div>
+      <div class="panel">
+        <h2>Queries by category</h2>
+        <div id="catBars"><p class="empty-note">No queries yet.</p></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Sessions</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Session</th>
+            <th>Language</th>
+            <th>Turns</th>
+            <th>Last category</th>
+            <th>Last sentiment</th>
+            <th>Case status</th>
+            <th>Last activity</th>
+          </tr>
+        </thead>
+        <tbody id="sessionRows">
+          <tr><td colspan="7" class="empty-note">No active sessions.</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+
+  <script src="/js/dashboard.js"></script>
+</body>
+</html>

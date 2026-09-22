@@ -1,0 +1,538 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Setu — talk in your language</title>
+<link rel="stylesheet" href="/css/styles.css" />
+<style>
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    height: calc(100vh - 65px);
+  }
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; height: auto; }
+    .rail { border-left: none; border-top: 1px solid var(--border); }
+  }
+
+  .chat-col {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .chat-intro {
+    padding: 22px 28px 6px;
+  }
+  .chat-intro h1 {
+    font-size: 22px;
+    margin: 0 0 6px;
+    letter-spacing: -0.01em;
+  }
+  .chat-intro p {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 14px;
+    max-width: 62ch;
+  }
+
+  .thread {
+    flex: 1;
+    overflow-y: auto;
+    padding: 18px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .msg {
+    max-width: 68%;
+    padding: 11px 14px;
+    border-radius: var(--radius);
+    font-size: 14.5px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+  }
+  .msg.user {
+    align-self: flex-end;
+    background: var(--teal-dim);
+    color: #075f55;
+    border-bottom-right-radius: 2px;
+  }
+  .msg.assistant {
+    align-self: flex-start;
+    background: var(--panel-raised);
+    border: 1px solid var(--border);
+    border-bottom-left-radius: 2px;
+  }
+  .msg.system {
+    align-self: center;
+    color: var(--text-muted);
+    font-size: 12.5px;
+    background: none;
+    border: 1px dashed var(--border);
+  }
+  .msg.pending {
+    align-self: flex-start;
+    color: var(--text-muted);
+    font-style: italic;
+  }
+
+  .composer {
+    display: flex;
+    gap: 10px;
+    padding: 16px 28px 12px;
+    border-top: 1px solid var(--border);
+    align-items: center;
+  }
+  .composer input {
+    flex: 1;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 14.5px;
+  }
+  .composer input::placeholder {
+    color: #5b6478;
+  }
+  .composer button.send {
+    background: var(--teal);
+    color: #0b1712;
+    border: none;
+    border-radius: var(--radius);
+    padding: 0 20px;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    height: 44px;
+  }
+  .composer button.send:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .mic-btn {
+    width: 44px;
+    height: 44px;
+    flex: 0 0 44px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+  .mic-btn:hover { border-color: var(--teal); color: var(--text); }
+  .mic-btn.listening {
+    border-color: var(--red);
+    color: var(--red);
+    background: var(--red-dim);
+  }
+  .mic-btn.listening::after {
+    content: "";
+    position: absolute;
+    inset: -6px;
+    border-radius: 50%;
+    border: 1.5px solid var(--red);
+    animation: mic-pulse 1.4s ease-out infinite;
+  }
+  @keyframes mic-pulse {
+    0% { transform: scale(0.85); opacity: 0.8; }
+    100% { transform: scale(1.5); opacity: 0; }
+  }
+  .mic-btn.unsupported { opacity: 0.35; cursor: not-allowed; }
+
+  .lang-select-row {
+    padding: 0 28px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12.5px;
+    color: var(--text-muted);
+  }
+  .lang-select-row select {
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 5px 8px;
+    font-family: var(--font);
+    font-size: 12.5px;
+  }
+
+  .chips {
+    display: flex;
+    gap: 8px;
+    padding: 0 28px 14px;
+    flex-wrap: wrap;
+  }
+  .chip {
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--text-muted);
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .chip:hover {
+    border-color: var(--teal);
+    color: var(--text);
+  }
+
+  /* ---- right rail ---- */
+  .rail {
+    border-left: 1px solid var(--border);
+    padding: 22px 20px;
+    overflow-y: auto;
+  }
+  .rail h2 {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin: 0 0 4px;
+    font-weight: 600;
+  }
+  .rail p.hint {
+    font-size: 12.5px;
+    color: var(--text-muted);
+    margin: 0 0 16px;
+  }
+
+  /* pipeline stepper */
+  .pipeline {
+    margin-bottom: 26px;
+  }
+  .step {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 0;
+    font-size: 13px;
+    color: #4b5468;
+    opacity: 0.55;
+    transition: opacity 0.25s ease, color 0.25s ease;
+  }
+  .step .dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #333c52;
+    flex: 0 0 9px;
+    transition: background 0.25s ease, box-shadow 0.25s ease;
+  }
+  .step.connector {
+    padding: 0 0 0 3.5px;
+  }
+  .step.connector .line {
+    width: 1.5px;
+    height: 12px;
+    background: #262f45;
+  }
+  .step.active {
+    opacity: 1;
+    color: var(--text);
+  }
+  .step.active .dot {
+    background: var(--teal);
+    box-shadow: 0 0 0 4px var(--teal-dim);
+  }
+  .step.active .dot.pulsing {
+    animation: dot-pulse 0.9s ease-in-out infinite;
+  }
+  .step.done .dot { background: #3a4560; }
+  .step.escalated.active .dot { background: var(--red); box-shadow: 0 0 0 4px var(--red-dim); }
+  .step.escalated.active { color: var(--red); }
+  @keyframes dot-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.4); }
+  }
+
+  .field {
+    margin-bottom: 16px;
+  }
+  .field-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 5px;
+  }
+  .field-value {
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .confidence-track {
+    height: 6px;
+    border-radius: 999px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    overflow: hidden;
+    margin-top: 8px;
+  }
+  .confidence-fill {
+    height: 100%;
+    background: var(--teal);
+    width: 0%;
+    transition: width 0.4s ease;
+  }
+  .escalation-box {
+    margin-top: 6px;
+    padding: 12px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+  .escalation-box.on {
+    border-color: var(--red);
+    background: var(--red-dim);
+    color: #8f2925;
+  }
+  .queue-note {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 22px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  .case-card {
+    margin: 22px 0;
+    padding: 16px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--blue);
+    border-radius: var(--radius);
+  }
+  .case-card.ready { border-left-color: var(--teal); }
+  .case-card h3 {
+    margin: 0 0 10px;
+    font-family: var(--display-font);
+    font-size: 15px;
+  }
+  .case-status {
+    display: inline-block;
+    margin-bottom: 10px;
+    color: var(--blue);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+  .case-card.ready .case-status { color: var(--teal); }
+  .case-summary {
+    margin: 0 0 12px;
+    color: var(--text);
+    font-size: 13px;
+    line-height: 1.45;
+  }
+  .case-facts {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 9px;
+    margin: 0;
+  }
+  .case-fact dt {
+    color: var(--text-muted);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+  }
+  .case-fact dd {
+    margin: 2px 0 0;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .case-next {
+    margin: 14px 0 0;
+    padding-top: 12px;
+    border-top: 1px dashed var(--border);
+    color: var(--amber);
+    font-size: 12px;
+    line-height: 1.4;
+  }
+
+  /* ---- offline resilience ---- */
+  .offline-banner {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 28px;
+    background: var(--amber-dim);
+    color: var(--amber);
+    font-size: 13px;
+    border-bottom: 1px solid var(--border);
+  }
+  .offline-banner.show { display: flex; }
+  .offline-banner .dot {
+    width: 7px; height: 7px; border-radius: 50%; background: var(--amber);
+    animation: dot-pulse 1s ease-in-out infinite;
+  }
+
+  .msg.queued {
+    align-self: flex-end;
+    background: var(--panel-raised);
+    border: 1px dashed var(--amber);
+    color: var(--text-muted);
+  }
+  .msg.queued .queued-tag {
+    display: block;
+    margin-top: 4px;
+    font-size: 11px;
+    color: var(--amber);
+    font-style: normal;
+  }
+  .msg.local-fallback {
+    align-self: flex-start;
+    background: var(--panel-raised);
+    border: 1px dashed var(--border);
+    color: var(--text-muted);
+    font-size: 13.5px;
+  }
+  .msg.local-fallback .fallback-tag {
+    display: block;
+    margin-top: 4px;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .sim-toggle {
+    font-size: 11.5px;
+    color: var(--text-muted);
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 4px 10px;
+    cursor: pointer;
+  }
+  .sim-toggle.on { border-color: var(--amber); color: var(--amber); }
+</style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">Setu</span>
+      <span class="brand-sub">multilingual query triage, on the free Sarvam chat model</span>
+    </div>
+    <nav class="nav-links">
+      <a href="/" class="active">Chat</a>
+      <a href="/dashboard.html">Ops dashboard</a>
+    </nav>
+    <div class="status-pill" id="statusPill">
+      <span class="status-dot" id="statusDot"></span>
+      <span id="statusText">connecting…</span>
+    </div>
+    <button class="sim-toggle" id="simOfflineBtn" title="Simulate losing connectivity, for demos">Simulate offline</button>
+  </header>
+
+  <div class="offline-banner" id="offlineBanner">
+    <span class="dot"></span>
+    <span id="offlineBannerText">You're offline. Messages are queued on this device and will send the moment you're back online.</span>
+  </div>
+
+  <div class="layout">
+    <section class="chat-col">
+      <div class="chat-intro">
+        <h1>Ask in whichever language you're comfortable in — or just speak</h1>
+        <p>Hindi, Hinglish, Tamil, Telugu, Bengali, Marathi, English — Setu replies in the same language, and classifies every message on the side so nothing gets lost or mis-routed.</p>
+      </div>
+      <div class="chips">
+        <button class="chip" data-sample="Mera order 3 din se late hai, koi update nahi mila">Late order (Hindi)</button>
+        <button class="chip" data-sample="என் கட்டணம் இரண்டு முறை பிடிக்கப்பட்டது, உதவி வேண்டும்">Double charge (Tamil)</button>
+        <button class="chip" data-sample="App keeps crashing when I try to log in, very urgent">Login crash (English)</button>
+      </div>
+      <div class="thread" id="thread"></div>
+      <div class="lang-select-row">
+        <span>Mic listens in:</span>
+        <select id="voiceLang">
+          <option value="hi-IN">Hindi</option>
+          <option value="en-IN" selected>English (India)</option>
+          <option value="ta-IN">Tamil</option>
+          <option value="te-IN">Telugu</option>
+          <option value="bn-IN">Bengali</option>
+          <option value="mr-IN">Marathi</option>
+        </select>
+        <span class="voice-status" id="voiceStatus" role="status" aria-live="polite">Voice input ready</span>
+      </div>
+      <form class="composer" id="composer">
+        <button type="button" class="mic-btn" id="micBtn" title="Speak your message" aria-label="Speak your message">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+            <line x1="12" y1="19" x2="12" y2="23"/>
+            <line x1="8" y1="23" x2="16" y2="23"/>
+          </svg>
+        </button>
+        <input id="messageInput" type="text" placeholder="Type, or tap the mic and speak…" autocomplete="off" />
+        <button type="submit" class="send" id="sendBtn">Send</button>
+      </form>
+    </section>
+
+    <aside class="rail">
+      <h2>Request pipeline</h2>
+      <p class="hint">A live trace of your last message moving through Setu's backend — not a mock animation.</p>
+      <div class="pipeline" id="pipeline">
+        <div class="step" data-stage="received"><span class="dot"></span><span>Received</span></div>
+        <div class="step connector"><span class="line"></span></div>
+        <div class="step" data-stage="queued"><span class="dot"></span><span>Rate-limit queue</span></div>
+        <div class="step connector"><span class="line"></span></div>
+        <div class="step" data-stage="generating"><span class="dot"></span><span>Model: reply + classify</span></div>
+        <div class="step connector"><span class="line"></span></div>
+        <div class="step" data-stage="classified"><span class="dot"></span><span>Understood</span></div>
+        <div class="step connector"><span class="line"></span></div>
+        <div class="step" data-stage="final"><span class="dot"></span><span id="finalStageLabel">Routed</span></div>
+      </div>
+
+      <h2>Live understanding</h2>
+      <div class="field">
+        <div class="field-label">Detected language</div>
+        <div class="field-value" id="fLanguage">—</div>
+      </div>
+      <div class="field">
+        <div class="field-label">Intent</div>
+        <div class="field-value" id="fIntent">—</div>
+      </div>
+      <div class="field">
+        <div class="field-label">Category</div>
+        <div class="field-value" id="fCategory">—</div>
+      </div>
+      <div class="field">
+        <div class="field-label">Urgency &amp; sentiment</div>
+        <div class="field-value">
+          <span class="badge badge-low" id="fUrgency">—</span>
+          <span class="badge badge-neutral" id="fSentiment">—</span>
+        </div>
+      </div>
+      <div class="field">
+        <div class="field-label">Model confidence</div>
+        <div class="confidence-track"><div class="confidence-fill" id="fConfidence"></div></div>
+      </div>
+
+      <section class="case-card" id="caseCard" aria-live="polite">
+        <span class="case-status" id="caseStatus">Case intake waiting</span>
+        <h3>Resolution brief</h3>
+        <p class="case-summary" id="caseSummary">Send a message and Setu will turn it into an evidence-bound case.</p>
+        <dl class="case-facts">
+          <div class="case-fact"><dt>Issue</dt><dd id="caseIssue">—</dd></div>
+          <div class="case-fact"><dt>Requested action</dt><dd id="caseAction">—</dd></div>
+          <div class="case-fact"><dt>Reference</dt><dd id="caseReference">—</dd></div>
+          <div class="case-fact"><dt>Location</dt><dd id="caseLocation">—</dd></div>
+        </dl>
+        <p class="case-next" id="caseNext">Missing facts will appear here for a focused follow-up.</p>
+        <p class="case-next" id="caseDecision">Decision kernel is waiting for evidence.</p>
+      </section>
+
+      <div class="escalation-box" id="escalationBox">No escalation on this session yet.</div>
+      <div class="queue-note" id="queueNote">Rate-limit queue: idle</div>
+      <div class="queue-note" id="offlineNote" style="border-top:none;padding-top:0;margin-top:8px;">Offline queue: empty</div>
+    </aside>
+  </div>
+
+  <script src="/js/chat.js"></script>
+</body>
+</html>
