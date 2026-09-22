@@ -161,7 +161,3 @@ Show that Setu:
 5. Asks one Hindi follow-up question.
 6. Marks the case for safe operator handling.
 7. Updates the operations dashboard.
-
-## License
-
-No license has been selected yet. Add one before publishing the repository publicly.
